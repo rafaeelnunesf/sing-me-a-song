@@ -19,6 +19,7 @@ export async function createdRecommendation(body) {
 
 export async function getRecommendationById(id: number) {
   return await supertest(app).get(`/recommendations/${id}`);
+
 }
 export async function getRecommendations() {
   return await supertest(app).get(`/recommendations/`);

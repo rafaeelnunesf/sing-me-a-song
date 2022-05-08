@@ -5,6 +5,7 @@ import {
   createdRecommendation,
   createRecommendationBody,
   getRecommendationById,
+  getRecommendations,
 } from "./factories/RecommendationsFactory.js";
 
 async function truncateRecommendations() {
@@ -14,10 +15,10 @@ async function disconnect() {
   await prisma.$disconnect();
 }
 
-describe("POST /recommendations", () => {
-  beforeEach(truncateRecommendations);
-  afterAll(disconnect);
+beforeEach(truncateRecommendations);
+afterAll(disconnect);
 
+describe("POST /recommendations", () => {
   it("should return 201 and persist the recommendation given a valid body", async () => {
     const body = await createRecommendationBody();
 
@@ -44,9 +45,6 @@ describe("POST /recommendations", () => {
   });
 });
 describe("POST /recommendations/:id/upvote", () => {
-  beforeEach(truncateRecommendations);
-  afterAll(disconnect);
-
   it("should return 200 given a valid id and add 1 to score ", async () => {
     const body = await createRecommendationBody();
     const recommendation = await createdRecommendation(body);
@@ -54,12 +52,67 @@ describe("POST /recommendations/:id/upvote", () => {
     const { status } = await supertest(app).post(
       `/recommendations/${recommendation.id}/upvote`
     );
-    const recomendationAfterUpvote = await getRecommendationById(
-      recommendation.id
-    );
-    const score = recomendationAfterUpvote.body.score;
+    const { body: result } = await getRecommendationById(recommendation.id);
+    const score = result.score;
 
     expect(status).toEqual(200);
     expect(recommendation.score + 1).toEqual(score);
+  });
+});
+describe("POST /recommendations/:id/downvote", () => {
+  it("should return 200 given a valid id and remove 1 to score ", async () => {
+    const body = await createRecommendationBody();
+    const recommendation = await createdRecommendation(body);
+
+    const { status } = await supertest(app).post(
+      `/recommendations/${recommendation.id}/downvote`
+    );
+    const { body: result } = await getRecommendationById(recommendation.id);
+    const score = result.score;
+
+    expect(status).toEqual(200);
+    expect(recommendation.score - 1).toEqual(score);
+  });
+  it("should be removed when the score falls below -5 ", async () => {
+    const body = await createRecommendationBody();
+    const recommendation = await createdRecommendation(body);
+
+    for (let i = 0; i < 7; i++) {
+      await supertest(app).post(
+        `/recommendations/${recommendation.id}/downvote`
+      );
+    }
+    const { body: result } = await getRecommendationById(recommendation.id);
+    const score = result.score;
+
+    expect(score).toBe(undefined);
+  });
+});
+describe("GET /recommendations", () => {
+  it("should return status 200 and a list of recommendations", async () => {
+    const rec = await createRecommendationBody();
+    await createdRecommendation(rec);
+    const { status, body: recommendations } = await getRecommendations();
+
+    expect(status).toBe(200);
+    expect(recommendations.length).toBeLessThanOrEqual(10);
+  });
+});
+describe("GET /recommendations/:id", () => {
+  it("should return status 200 and a recommendation", async () => {
+    const body = await createRecommendationBody();
+    const { id } = await createdRecommendation(body);
+
+    const result = await getRecommendationById(id);
+
+    const object = {
+      id: expect.any(Number),
+      name: expect.any(String),
+      youtubeLink: expect.any(String),
+      score: expect.any(Number),
+    };
+
+    expect(result.status).toEqual(200);
+    expect(result.body).toEqual(object);
   });
 });
