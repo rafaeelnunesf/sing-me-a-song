@@ -82,4 +82,6 @@ export const recommendationService = {
   get,
   getById,
   getTop,
+  getScoreFilter,
+  getByScore,
 };
