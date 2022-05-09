@@ -1,12 +1,13 @@
 import supertest from "supertest";
-import app from "../src/app.js";
-import { prisma } from "../src/database.js";
+import app from "../../src/app.js";
+import { prisma } from "../../src/database.js";
 import {
   createdRecommendation,
   createRecommendationBody,
+  generateRecommendations,
   getRecommendationById,
   getRecommendations,
-} from "./factories/RecommendationsFactory.js";
+} from "../factories/RecommendationsFactory.js";
 
 async function truncateRecommendations() {
   await prisma.$executeRaw`TRUNCATE TABLE recommendations;`;
@@ -114,5 +115,28 @@ describe("GET /recommendations/:id", () => {
 
     expect(result.status).toEqual(200);
     expect(result.body).toEqual(object);
+  });
+});
+describe("GET /recommendations/top/:amount", () => {
+  it("should return n recommendations in descending order of score given a number n as amount", async () => {
+    await generateRecommendations();
+
+    const amount = 4;
+
+    const { body, status } = await supertest(app).get(
+      `/recommendations/top/${amount}`
+    );
+
+    expect(body[0].score).toBeGreaterThanOrEqual(body[1].score);
+    expect(status).toEqual(200);
+  });
+});
+describe("GET /recommendations/random", () => {
+  it("should return a valid recommendations", async () => {
+    await generateRecommendations();
+
+    const { status } = await supertest(app).get(`/recommendations/random`);
+
+    expect(status).toEqual(200);
   });
 });
